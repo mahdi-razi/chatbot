@@ -8,7 +8,21 @@ tokenizer = AutoTokenizer.from_pretrained(name)
 
 chunker = HybridChunker(tokenizer=HuggingFaceTokenizer(tokenizer=tokenizer, max_tokens=max_tokens))
 
-def chunk_doc(doc):
-    chunks = list(chunker.chunk(doc))
-    texts = [chunker.contextualize(chunk=c) for c in chunks]
-    return chunks, texts
+def chunk_doc(doc, src):
+    doc_id = str(src)
+    chunks = []
+
+    for i, chunk in enumerate(chunker.chunk(doc)):
+        chunks.append({
+            'doc_id': doc_id,
+            'chunk_id': i,
+            'text': chunker.contextualize(chunk=chunk),
+            'headings': chunk.meta.headings or [],
+            'pages': sorted({
+                p.page_no
+                for item in chunk.meta.doc_items
+                for p in item.prov
+            }),
+        })
+
+    return chunks
