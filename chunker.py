@@ -8,13 +8,16 @@ tokenizer = AutoTokenizer.from_pretrained(name)
 
 chunker = HybridChunker(tokenizer=HuggingFaceTokenizer(tokenizer=tokenizer, max_tokens=max_tokens))
 
-def chunk_doc(doc, src):
-    doc_id = str(src)
+def chunk_doc(parsed):
+    doc = parsed.document
+    doc_id = parsed.input.document_hash
+    doc_name = parsed.input.file.name 
     chunks = []
 
     for i, chunk in enumerate(chunker.chunk(doc)):
         chunks.append({
             'doc_id': doc_id,
+            'doc_name': doc_name,
             'chunk_id': i,
             'text': chunker.contextualize(chunk=chunk),
             'headings': chunk.meta.headings or [],
@@ -26,3 +29,13 @@ def chunk_doc(doc, src):
         })
 
     return chunks
+
+# improve doc_id(check)
+# result.input.file.name     # "report.pdf"(check)
+# add allowed groups
+
+# add updated at
+# result.input.file          # PurePath object
+# result.input.file.stem     # "report"
+# result.input.file.suffix   # ".pdf"
+# str(result.input.file)     # String representation of the path
