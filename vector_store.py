@@ -22,9 +22,10 @@ class VectorStore:
         for c in chunks:
             metadatas.append({
                 'doc_id': c['doc_id'],
+                'doc_name': c['doc_name'],
                 'chunk_id': c['chunk_id'],
-                'headings': " > ".join(c['headings']),
-                'pages': ','.join(map(str, c['pages'])),
+                'headings': c['headings'],
+                'pages': c['pages'],
             })
 
         self.collection.upsert(
