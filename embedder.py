@@ -1,11 +1,9 @@
 from sentence_transformers import SentenceTransformer
 
-name = 'Qwen/Qwen3-Embedding-0.6B'
-
 
 class Embedder:
-    def __init__(self):
-        self.model = SentenceTransformer(name)
+    def __init__(self, embedder_name='Qwen/Qwen3-Embedding-0.6B'):
+        self.model = SentenceTransformer(embedder_name)
 
     def embed_chunks(self, texts: list[str]):
         return self.model.encode(texts, normalize_embeddings=True, show_progress_bar=True)
