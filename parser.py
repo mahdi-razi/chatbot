@@ -13,4 +13,4 @@ def parse_doc(src):
     except Exception as e:
         raise RuntimeError(f"Failed to parse document '{src}'") from e
 
-    return result.document
+    return result
