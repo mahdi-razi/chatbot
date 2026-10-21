@@ -1,13 +1,13 @@
 from qdrant_client import QdrantClient, models
 import uuid
-
-sparse_model = "Qdrant/bm25"
+from errors import StoreError
 
 
 class VectorStore:
-    def __init__(self, name, path, dim):
-        self.client = QdrantClient(path=path)
+    def __init__(self, name, url, dim, timeout=60, sparse_model="Qdrant/bm25"):
+        self.client = QdrantClient(url=url, timeout=timeout)
         self.name = name
+        self.sparse_model = sparse_model
 
         if not self.client.collection_exists(name):
             self.client.create_collection(
@@ -18,17 +18,17 @@ class VectorStore:
 
 
     def add(self, chunks, vectors):
-        if not chunks:
-            return
-
+        if len(chunks) != len(vectors):
+            raise StoreError(f"{len(chunks)} chunks but {len(vectors)} vectors")
+            
         self.delete(chunks[0]['doc_id'])
 
         points = [
             models.PointStruct(
-                id=str(uuid.uuid5(uuid.NAMESPACE_OID, f"{c['doc_id']}_{c['chunk_id']}")),
+                id=str(uuid.uuid5(uuid.NAMESPACE_OID, c['chunk_id'])),
                 vector={
                     "dense": v,
-                    "sparse": models.Document(text=c['text'], model=sparse_model),
+                    "sparse": models.Document(text=c['text'], model=self.sparse_model),
                 },
                 payload={
                     'text': c['text'],
@@ -41,8 +41,12 @@ class VectorStore:
             )
             for c, v in zip(chunks, vectors.tolist())
         ]
+        
+        try:
+            self.client.upsert(collection_name=self.name, points=points)
 
-        self.client.upsert(collection_name=self.name, points=points)
+        except Exception as e:
+            raise StoreError(f"Failed to store '{chunks[0]['doc_name']}'") from e
 
 
     def search(self, query_vector, query_text, k=10, fetch_k=50):
@@ -55,7 +59,7 @@ class VectorStore:
                     limit=fetch_k
                 ),
                 models.Prefetch(
-                    query=models.Document(text=query_text, model=sparse_model),
+                    query=models.Document(text=query_text, model=self.sparse_model),
                     using="sparse",
                     limit=fetch_k,
                 ),
