@@ -1,6 +1,7 @@
 from docling.datamodel.pipeline_options import PdfPipelineOptions
 from docling.document_converter import DocumentConverter, PdfFormatOption
 from docling.datamodel.base_models import InputFormat
+from errors import ParseError
 
 
 class Parser:
@@ -15,4 +16,4 @@ class Parser:
             return self.converter.convert(src)
 
         except Exception as e:
-            raise RuntimeError(f"Failed to parse document '{src}'") from e
+            raise ParseError(f"Failed to parse document: '{src}'") from e
