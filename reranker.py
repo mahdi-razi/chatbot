@@ -1,5 +1,6 @@
 from sentence_transformers import CrossEncoder
 import torch
+from errors import RankError
 
 
 class Reranker:
@@ -19,13 +20,18 @@ class Reranker:
         )
 
 
-    def rerank(self, query, results, top_k=5):
+    def rerank(self, query, results, top_k=5, min_score=float("-inf")):
         if not results:
             return []
 
         pairs = [(query, result["text"]) for result in results]
 
-        scores = self.model.predict(pairs)
+        try:
+            scores = self.model.predict(pairs)
+            
+        except Exception as e:
+            raise RankError("Reranker model failed") from e
+
 
         ranked = [
             {**result, "rerank_score": float(score)}
@@ -36,5 +42,7 @@ class Reranker:
             key=lambda result: result["rerank_score"],
             reverse=True,
         )
+
+        ranked = [r for r in ranked if r["rerank_score"] >= min_score]
 
         return ranked[:top_k]
