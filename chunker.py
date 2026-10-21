@@ -1,6 +1,7 @@
 from transformers import AutoTokenizer
 from docling.chunking import HybridChunker
 from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
+from errors import ChunkError
 
 
 class Chunker:
@@ -14,19 +15,24 @@ class Chunker:
         doc_id = parsed.input.document_hash
         doc_name = parsed.input.file.name 
         chunks = []
-
-        for i, chunk in enumerate(self.chunker.chunk(doc)):
-            chunks.append({
-                'doc_id': doc_id,
-                'doc_name': doc_name,
-                'chunk_id': i,
-                'text': self.chunker.contextualize(chunk=chunk),
-                'headings': chunk.meta.headings or [],
-                'pages': sorted({
-                    p.page_no
-                    for item in chunk.meta.doc_items
-                    for p in item.prov
+        try:
+            for i, chunk in enumerate(self.chunker.chunk(doc)):
+                chunks.append({
+                    'doc_id': doc_id,
+                    'doc_name': doc_name,
+                    'chunk_id': f"{doc_id}_{i}",
+                    'text': self.chunker.contextualize(chunk=chunk),
+                    'headings': chunk.meta.headings or [],
+                    'pages': sorted({
+                        p.page_no
+                        for item in chunk.meta.doc_items
+                        for p in item.prov
+                    })
                 })
-            })
+        except Exception as e:
+            raise ChunkError(f"Failed to chunk document '{doc_name}'") from e
 
+        if not chunks:
+            raise ChunkError(f"No content found in '{doc_name}'")
+        
         return chunks
