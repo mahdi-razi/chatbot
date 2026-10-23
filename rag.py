@@ -64,6 +64,7 @@ class RAG:
         cache_key = None
         retrieved = []
         used_chunk_ids = []
+        sources = []
         
         try:
             history = self.history.get(session_id)
@@ -84,14 +85,14 @@ class RAG:
                 vec = self.embedder.embed_query(cache_key)
                 hit = self.cache.lookup(vec)
                 if hit is not None:
-                    self._save_history(session_id, query, hit)
+                    self._save_history(session_id, query, hit['answer'])
                     return hit
 
             retrieved = self._retrieve(route, original_query=query, top_k=(10 if route.type == Route.MULTIPLE else 5))
             if not retrieved:
                 answer = "I couldn't find relevant information in the documents."
                 self._save_history(session_id, query, answer)
-                return answer
+                return {"answer": answer, "sources": []}
 
             chunks = [r["text"] for r in retrieved]
             prompt = build_prompt(RAG_SYSTEM_PROMPT + JSON_OUTPUT_PROMPT, query, chunks, history=history)
@@ -101,19 +102,19 @@ class RAG:
             try:
                 out = Model.model_validate_json(raw)
                 answer, used_chunk_ids = out.answer, sorted(set(out.used_chunks))
-                logger.info("query %r used chunks %s", query, used_chunk_ids)
+                sources = self._sources(retrieved, used_chunk_ids)
             except ValidationError:
                 logger.warning("Invalid answer output, falling back to raw text", exc_info=True)
                 cache_key = None
                 answer = json.loads(raw)["answer"]
         
         if cache_key and retrieved and used_chunk_ids:
-            self.cache.store(cache_key, vec, answer)
+            self.cache.store(cache_key, vec, answer, sources)
 
         if answer:
             self._save_history(session_id, query, answer)
 
-        return answer
+        return {"answer": answer, "sources": sources}
 
     
     def _retrieve(self, route, original_query, k=20, fetch_k=50, top_k=5):
@@ -123,7 +124,7 @@ class RAG:
             hits = self.store.search(self.embedder.embed_query(q), q, k=k, fetch_k=fetch_k)
             new = []
             for h in hits:
-                key = (h["metadata"]["doc_id"], h["metadata"]["chunk_id"])
+                key = h["metadata"]["chunk_id"]
                 if key not in seen:
                     seen.add(key)
                     results.append(h)
@@ -146,3 +147,16 @@ class RAG:
 
         except HistoryError:
             logger.warning("Could not save history", exc_info=True)
+
+
+    def _sources(self, retrieved, used_chunks_ids):
+        out = []
+        for i in used_chunks_ids:
+            m = retrieved[i - 1]["metadata"]
+            out.append({
+                "chunk_id": m["chunk_id"],
+                "doc_name": m["doc_name"],
+                "pages": m["pages"],
+                "headings": m["headings"],
+            })
+        return out
