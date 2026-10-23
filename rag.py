@@ -15,6 +15,7 @@ from enum import IntEnum
 import logging
 import json
 import os
+from itertools import zip_longest
 
 logger = logging.getLogger(__name__)
 
@@ -116,16 +117,18 @@ class RAG:
 
     
     def _retrieve(self, route, original_query, k=20, fetch_k=50, top_k=5):
-        seen = set()
-        results = []
+        seen, results, groups = set(), [], []
 
         for q in route.queries:
             hits = self.store.search(self.embedder.embed_query(q), q, k=k, fetch_k=fetch_k)
+            new = []
             for h in hits:
                 key = (h["metadata"]["doc_id"], h["metadata"]["chunk_id"])
                 if key not in seen:
                     seen.add(key)
                     results.append(h)
+                    new.append(h)
+            groups.append(new)
 
         rerank_query = original_query if route.type == Route.MULTIPLE else route.queries[0]
         try:
@@ -133,7 +136,8 @@ class RAG:
 
         except RankError:
             logger.warning("Reranking failed; returning retrieved results", exc_info=True)
-            return results[:top_k]
+            interleaved = [h for row in zip_longest(*groups) for h in row if h is not None]
+            return interleaved[:top_k]
 
 
     def _save_history(self, session_id, query, answer):
