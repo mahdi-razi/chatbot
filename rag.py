@@ -52,6 +52,12 @@ class RAG:
         logger.info("Ingested %s (%d chunks)", src, len(chunks))
         return len(chunks)
 
+    def remove_doc(self, doc_name):
+        n = self.store.delete(doc_name)
+        if n:
+            self.cache.clear()
+            logger.info("Deleted document '%s' (%d chunks)", doc_name, n)
+        return n
 
     def ask(self, session_id, query):
         cache_key = None
