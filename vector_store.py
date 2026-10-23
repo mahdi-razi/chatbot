@@ -21,7 +21,7 @@ class VectorStore:
         if len(chunks) != len(vectors):
             raise StoreError(f"{len(chunks)} chunks but {len(vectors)} vectors")
             
-        self.delete(chunks[0]['doc_id'])
+        self.delete(doc_name=chunks[0]['doc_name'], doc_id=chunks[0]['doc_id'])
 
         points = [
             models.PointStruct(
@@ -87,10 +87,20 @@ class VectorStore:
         return out
 
 
-    def delete(self, doc_id):
-        self.client.delete(
-            collection_name=self.name,
-            points_selector=models.Filter(
-                must=[models.FieldCondition(key="doc_id", match=models.MatchValue(value=doc_id))]
-            ),
-        )
+    def delete(self, doc_name=None, doc_id=None):
+        conds = []
+        if doc_name is not None:
+            conds.append(models.FieldCondition(key="doc_name", match=models.MatchValue(value=doc_name)))
+        if doc_id is not None:
+            conds.append(models.FieldCondition(key="doc_id", match=models.MatchValue(value=doc_id)))
+        if not conds:
+            raise ValueError("doc_name or doc_id is required")
+
+        flt = models.Filter(should=conds)
+        try:
+            n = self.client.count(self.name, count_filter=flt, exact=True).count
+            if n:
+                self.client.delete(collection_name=self.name, points_selector=flt)
+        except Exception as e:
+            raise StoreError(f"Failed to delete document name={doc_name!r} id={doc_id!r}") from e
+        return n
