@@ -39,12 +39,15 @@ class SemanticCache:
 
         if pts:
             logger.info("Cache hit score=%.3f cached_question=%r",pts[0].score, pts[0].payload.get("question"))
-            return pts[0].payload["answer"]
+            return {
+                "answer": pts[0].payload["answer"],
+                "sources": pts[0].payload.get("sources", []),
+            }
         
         return None
 
 
-    def store(self, question, vec, answer):
+    def store(self, question, vec, answer, sources):
         try:
             self.client.upsert(self.name, points=[models.PointStruct(
                 id=str(uuid.uuid5(uuid.NAMESPACE_URL, question.strip().lower())),
@@ -52,6 +55,7 @@ class SemanticCache:
                 payload={
                     "question": question,
                     "answer": answer,
+                    "sources": sources,
                     "expires_at": (datetime.now(timezone.utc) + self.ttl).isoformat(),
                 },
             )])
