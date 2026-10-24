@@ -154,7 +154,6 @@ class RAG:
         for i in used_chunks_ids:
             m = retrieved[i - 1]["metadata"]
             out.append({
-                "chunk_id": m["chunk_id"],
                 "doc_name": m["doc_name"],
                 "pages": m["pages"],
                 "headings": m["headings"],
