@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from qdrant_client import models
 import logging
+from langfuse import observe
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class SemanticCache:
                 vectors_config=models.VectorParams(size=self.dim, distance=models.Distance.COSINE)
             )
   
-
+    @observe(name="cache lookup", capture_input=False)
     def lookup(self, vec):
         pts = self.client.query_points(
             self.name,
@@ -46,7 +47,7 @@ class SemanticCache:
         
         return None
 
-
+    @observe(name="cache store", capture_input=False)
     def store(self, question, vec, answer, sources):
         try:
             self.client.upsert(self.name, points=[models.PointStruct(
@@ -63,6 +64,7 @@ class SemanticCache:
             logger.warning("Cache write failed", exc_info=True)
 
 
+    @observe(name="cache clear", capture_input=False)
     def clear(self):
         try:
             if self.client.count(self.name, exact=True).count == 0:

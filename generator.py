@@ -1,4 +1,4 @@
-from openai import OpenAI
+from langfuse.openai import OpenAI
 
 
 class Generator:
@@ -6,7 +6,7 @@ class Generator:
         self.name = name
         self.client = OpenAI(base_url=base_url, api_key='EMPTY')
 
-    def __call__(self, prompt, max_new_tokens=2048, schema=None):
+    def __call__(self, prompt, max_new_tokens=2048, schema=None, name="generate"):
         kwargs = {}
         if schema is not None:
             kwargs["response_format"] = {
@@ -21,6 +21,7 @@ class Generator:
             extra_body={
                 "chat_template_kwargs": {"enable_thinking": False},
             },
+            name=name,
             **kwargs,
         )
         return res.choices[0].message.content

@@ -1,6 +1,7 @@
 from qdrant_client import QdrantClient, models
 import uuid
 from errors import StoreError
+from langfuse import observe
 
 
 class VectorStore:
@@ -16,7 +17,7 @@ class VectorStore:
                 sparse_vectors_config={"sparse": models.SparseVectorParams(modifier=models.Modifier.IDF)},
             )
 
-
+    @observe(name="store add", capture_input=False)
     def add(self, chunks, vectors):
         if len(chunks) != len(vectors):
             raise StoreError(f"{len(chunks)} chunks but {len(vectors)} vectors")
@@ -48,7 +49,8 @@ class VectorStore:
         except Exception as e:
             raise StoreError(f"Failed to store '{chunks[0]['doc_name']}'") from e
 
-
+    
+    @observe(name="store search", as_type="retriever", capture_input=False)
     def search(self, query_vector, query_text, k=10, fetch_k=50):
         res = self.client.query_points(
             collection_name=self.name,
@@ -87,6 +89,7 @@ class VectorStore:
         return out
 
 
+    @observe(name="store delete")
     def delete(self, doc_name=None, doc_id=None):
         conds = []
         if doc_name is not None:

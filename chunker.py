@@ -2,6 +2,7 @@ from transformers import AutoTokenizer
 from docling.chunking import HybridChunker
 from docling_core.transforms.chunker.tokenizer.huggingface import HuggingFaceTokenizer
 from errors import ChunkError
+from langfuse import observe
 
 
 class Chunker:
@@ -9,7 +10,7 @@ class Chunker:
         tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         self.chunker = HybridChunker(tokenizer=HuggingFaceTokenizer(tokenizer=tokenizer, max_tokens=max_tokens))
     
-    
+    @observe(name="chunk", capture_input=False, capture_output=False)
     def chunk_doc(self, parsed):
         doc = parsed.document
         doc_id = parsed.input.document_hash

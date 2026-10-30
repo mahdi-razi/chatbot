@@ -33,7 +33,7 @@ class RouterOutput(BaseModel):
 
 def router(gen, query, history=None):
     prompt = build_prompt(ROUTER_SYSTEM_PROMPT, query, history=history)
-    raw = gen(prompt, schema=RouterOutput.model_json_schema())
+    raw = gen(prompt, schema=RouterOutput.model_json_schema(), name="router")
     try:
         return RouterOutput.model_validate_json(raw), False
     except ValidationError:

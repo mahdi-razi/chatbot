@@ -16,6 +16,7 @@ import logging
 import json
 import os
 from itertools import zip_longest
+from langfuse import observe, get_client
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +44,7 @@ class RAG:
         self.gen = Generator(base_url=LLM_BASE_URL)
         self.history = History(REDIS_URL)
 
-
+    @observe(name="ingest")
     def ingest(self, src):
         parsed = self.parser.parse_doc(src)
         chunks = self.chunker.chunk_doc(parsed)
@@ -53,6 +54,7 @@ class RAG:
         logger.info("Ingested %s (%d chunks)", src, len(chunks))
         return len(chunks)
 
+    @observe(name="remove doc")
     def remove_doc(self, doc_name):
         n = self.store.delete(doc_name)
         if n:
@@ -60,7 +62,10 @@ class RAG:
             logger.info("Deleted document '%s' (%d chunks)", doc_name, n)
         return n
 
+    @observe(name="ask")
     def ask(self, session_id, query):
+        lf = get_client()
+        lf.update_current_trace(session_id=session_id)
         cache_key = None
         retrieved = []
         used_chunk_ids = []
@@ -77,7 +82,7 @@ class RAG:
 
         if route.type == Route.NO_RETRIEVAL: 
             prompt = build_prompt(RAG_SYSTEM_PROMPT, query, history=history)
-            answer= self.gen(prompt).strip()
+            answer= self.gen(prompt, name="answer").strip()
 
         else:
             if route.type in (Route.STANDALONE, Route.FOLLOW_UP) and not fell_back:
@@ -98,7 +103,7 @@ class RAG:
             prompt = build_prompt(RAG_SYSTEM_PROMPT + JSON_OUTPUT_PROMPT, query, chunks, history=history)
 
             Model = make_answer_model(len(chunks))
-            raw = self.gen(prompt, schema=Model.model_json_schema())
+            raw = self.gen(prompt, schema=Model.model_json_schema(), name="answer")
             try:
                 out = Model.model_validate_json(raw)
                 answer, used_chunk_ids = out.answer, sorted(set(out.used_chunks))
