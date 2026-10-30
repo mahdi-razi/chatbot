@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+python-multipart
+pydantic
+redis
+openai
+qdrant-client[fastembed]
+sentence-transformers
+transformers
+torch
+docling
