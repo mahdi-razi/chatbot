@@ -5,13 +5,13 @@ A document question answering API built on Retrieval-Augmented Generation. Uploa
 ## Features
 
 - **Document ingestion**: parses PDF, DOCX, PPTX, XLSX, HTML, Markdown and CSV with [Docling](https://github.com/docling-project/docling) and splits them into structure-aware chunks
-- **Hybrid search**: dense embeddings (Qwen3-Embedding-0.6B) plus BM25 sparse vectors in Qdrant, fused with RRF
-- **Reranking**: Qwen3-Reranker-0.6B cross-encoder reorders the retrieved chunks
+- **Hybrid search**: dense embeddings plus BM25 sparse vectors in Qdrant, fused with RRF
+- **Reranking**: cross encoder reorders the retrieved chunks
 - **Query router**: classifies each message (chitchat, standalone, follow-up, multi-question) and rewrites follow-ups into standalone queries
-- **Chat history**: per-session history stored in Redis (last 8 turns, 1 hour TTL)
-- **Semantic cache**: similar questions are answered from cache (cosine threshold 0.95, 7 day TTL); cleared whenever documents are added or removed
+- **Chat history**: per-session history stored in Redis
+- **Semantic cache**: similar questions are answered from cache
 - **Local LLM**: Qwen3-8B-AWQ served by vLLM through an OpenAI-compatible API
-- **Observability**: optional tracing with Langfuse
+- **Observability**: tracing with Langfuse
 
 ## Architecture
 
@@ -117,9 +117,3 @@ curl -X DELETE http://localhost:8080/documents/report.pdf \
 | `prompts.py` | System prompts |
 | `helper.py` | Prompt building and structured-output schema |
 | `errors.py` | Custom exceptions |
-
-## Notes
-
-- Information requests are answered only from the retrieved documents. If the documents don't contain the answer, the bot says so. Greetings and questions about the bot itself are handled without retrieval.
-- Reranker, chat history and cache failures degrade gracefully (for example, the app falls back to the unreranked results if the reranker fails). A vector store failure during search returns an error.
-- Models are cached in the `hf_cache` volume. Vector data and chat history persist in the `qdrant_data` and `redis_data` volumes.
